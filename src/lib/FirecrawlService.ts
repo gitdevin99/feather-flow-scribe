@@ -26,7 +26,7 @@ export interface BlogMetadata {
 
 export class FirecrawlService {
   private static API_KEY = "fc-3bcb6a99768c41248598a69ff4ed039b";
-  private static BASE_URL = "https://api.firecrawl.dev";
+  private static BASE_URL = "https://api.firecrawl.dev/v1";
 
   static async crawlWebsite(url: string): Promise<{ 
     success: boolean; 
@@ -38,7 +38,7 @@ export class FirecrawlService {
       console.log('Making crawl request to Firecrawl API for URL:', url);
       
       // First, initiate a crawl
-      const crawlResponse = await fetch(`${this.BASE_URL}/api/crawl`, {
+      const crawlResponse = await fetch(`${this.BASE_URL}/crawl`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -54,11 +54,11 @@ export class FirecrawlService {
       });
       
       if (!crawlResponse.ok) {
-        const errorData = await crawlResponse.json();
-        console.error('Crawl API error:', errorData);
+        const errorText = await crawlResponse.text();
+        console.error('Crawl API error:', errorText);
         return { 
           success: false, 
-          error: errorData.error || 'Failed to crawl website' 
+          error: `API Error (${crawlResponse.status}): ${errorText.substring(0, 100)}...` 
         };
       }
       

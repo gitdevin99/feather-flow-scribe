@@ -14,10 +14,24 @@ interface BlogPreviewProps {
     authors?: string[];
     publishDate?: string;
     featured?: boolean;
+    metaDescription?: string;
+    metaTitle?: string;
   };
 }
 
 const BlogPreview = ({ content, metadata }: BlogPreviewProps) => {
+  if (!content) {
+    return (
+      <Card className="shadow-md">
+        <CardContent className="p-6">
+          <div className="text-center text-gray-500 p-8">
+            No content to preview. Please enter blog content or URL first.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   return (
     <Card className="shadow-md">
       <CardContent className="p-6">
