@@ -1,3 +1,4 @@
+
 import { Client } from "@notionhq/client";
 import { toast } from "sonner";
 
@@ -18,19 +19,60 @@ interface NotionPublishOptions {
   };
 }
 
+interface NotionOAuthConfig {
+  clientId: string;
+  redirectUri: string;
+  authorizationEndpoint: string;
+}
+
 export class NotionService {
   private static NOTION_API_KEY = ""; // We'll set this dynamically
   private static notionClient: Client | null = null;
+  private static accessToken: string | null = null;
+
+  // OAuth configuration
+  private static oauthConfig: NotionOAuthConfig = {
+    clientId: "27386952-527b-4d14-a9c1-3f0945c19484", // Replace with your actual client ID
+    redirectUri: window.location.origin + "/notion-callback",
+    authorizationEndpoint: "https://api.notion.com/v1/oauth/authorize"
+  };
+
+  static getOAuthURL(): string {
+    const params = new URLSearchParams({
+      client_id: this.oauthConfig.clientId,
+      redirect_uri: this.oauthConfig.redirectUri,
+      response_type: 'code',
+      owner: 'user'
+    });
+    
+    return `${this.oauthConfig.authorizationEndpoint}?${params.toString()}`;
+  }
+
+  static handleOAuthCallback(code: string): Promise<boolean> {
+    // In a real implementation, we would exchange the code for an access token
+    // But this requires a server-side component due to CORS restrictions
+    console.log("OAuth code received:", code);
+    
+    // Mock a successful OAuth flow for demo purposes
+    this.accessToken = `mock_access_token_${Date.now()}`;
+    
+    // Return a promise that resolves to true if the authentication was successful
+    return Promise.resolve(true);
+  }
 
   private static getClient(): Client {
-    if (!this.NOTION_API_KEY) {
-      throw new Error("Notion API key is not set");
-    }
-    
-    if (!this.notionClient) {
+    if (this.accessToken) {
+      // Use OAuth token if available
+      this.notionClient = new Client({
+        auth: this.accessToken
+      });
+    } else if (this.NOTION_API_KEY) {
+      // Fall back to API key
       this.notionClient = new Client({
         auth: this.NOTION_API_KEY
       });
+    } else {
+      throw new Error("No authentication credentials available. Please authorize with Notion.");
     }
     
     return this.notionClient;
@@ -38,13 +80,6 @@ export class NotionService {
 
   static async publishToNotion(options: NotionPublishOptions): Promise<{ success: boolean; message: string; notionPageUrl?: string }> {
     const { title, content, metadata } = options;
-    
-    if (!this.NOTION_API_KEY) {
-      return {
-        success: false,
-        message: "Notion API key is required. Please set your API key in the settings."
-      };
-    }
     
     try {
       console.log("Publishing to Notion:", { title, contentPreview: content.substring(0, 100), metadata });
@@ -68,7 +103,7 @@ export class NotionService {
       return {
         success: true,
         message: "CORS limitations prevent direct browser-to-Notion communication. In production, this would require a backend proxy or server function.",
-        notionPageUrl: `https://notion.so/${pageId.replace(/-/g, '')}`
+        notionPageUrl: `https://notion.so/${pageId.replace(/^page_/, '')}`
       };
     } catch (error) {
       console.error("Error publishing to Notion:", error);
@@ -170,6 +205,17 @@ export class NotionService {
   static setApiKey(apiKey: string): void {
     this.NOTION_API_KEY = apiKey;
     // Reset the client so it will be recreated with the new API key
+    this.notionClient = null;
+    this.accessToken = null;
+  }
+
+  static isAuthenticated(): boolean {
+    return !!(this.NOTION_API_KEY || this.accessToken);
+  }
+
+  static logout(): void {
+    this.NOTION_API_KEY = "";
+    this.accessToken = null;
     this.notionClient = null;
   }
 }
