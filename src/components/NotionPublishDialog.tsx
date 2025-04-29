@@ -12,9 +12,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { NotionService } from "@/lib/NotionService";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface NotionPublishDialogProps {
   content: string;
@@ -79,6 +80,14 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
             Publish your converted content directly to Notion using the Feather blog template.
           </DialogDescription>
         </DialogHeader>
+        
+        <Alert variant="warning" className="mt-2 bg-amber-50">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Browser security (CORS) prevents direct API calls to Notion. In a production application, this would require a backend proxy or server function.
+          </AlertDescription>
+        </Alert>
+        
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="notion-api-key" className="col-span-4">
