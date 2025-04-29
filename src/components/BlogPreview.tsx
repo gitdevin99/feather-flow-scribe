@@ -2,15 +2,87 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import ReactMarkdown from "react-markdown";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 
 interface BlogPreviewProps {
   content: string;
+  metadata?: {
+    title?: string;
+    slug?: string;
+    excerpt?: string;
+    tags?: string[];
+    authors?: string[];
+    publishDate?: string;
+    featured?: boolean;
+  };
 }
 
-const BlogPreview = ({ content }: BlogPreviewProps) => {
+const BlogPreview = ({ content, metadata }: BlogPreviewProps) => {
   return (
     <Card className="shadow-md">
       <CardContent className="p-6">
+        {metadata && (
+          <div className="mb-6 border-b border-gray-200 pb-4">
+            <h2 className="text-xl font-semibold mb-4 text-blue-800">Notion Metadata</h2>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Property</TableHead>
+                  <TableHead>Value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {metadata.title && (
+                  <TableRow>
+                    <TableCell className="font-medium">Name (Title)</TableCell>
+                    <TableCell>{metadata.title}</TableCell>
+                  </TableRow>
+                )}
+                {metadata.slug && (
+                  <TableRow>
+                    <TableCell className="font-medium">Slug</TableCell>
+                    <TableCell>{metadata.slug}</TableCell>
+                  </TableRow>
+                )}
+                {metadata.excerpt && (
+                  <TableRow>
+                    <TableCell className="font-medium">Excerpt</TableCell>
+                    <TableCell>{metadata.excerpt}</TableCell>
+                  </TableRow>
+                )}
+                {metadata.publishDate && (
+                  <TableRow>
+                    <TableCell className="font-medium">Publish Date</TableCell>
+                    <TableCell>{metadata.publishDate}</TableCell>
+                  </TableRow>
+                )}
+                {metadata.featured !== undefined && (
+                  <TableRow>
+                    <TableCell className="font-medium">Featured</TableCell>
+                    <TableCell>{metadata.featured ? "Yes" : "No"}</TableCell>
+                  </TableRow>
+                )}
+                {metadata.tags && metadata.tags.length > 0 && (
+                  <TableRow>
+                    <TableCell className="font-medium">Tags</TableCell>
+                    <TableCell>{metadata.tags.join(", ")}</TableCell>
+                  </TableRow>
+                )}
+                {metadata.authors && metadata.authors.length > 0 && (
+                  <TableRow>
+                    <TableCell className="font-medium">Authors</TableCell>
+                    <TableCell>{metadata.authors.join(", ")}</TableCell>
+                  </TableRow>
+                )}
+                <TableRow>
+                  <TableCell className="font-medium">Ready to Publish</TableCell>
+                  <TableCell>Yes</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        
         <div className="prose prose-blue max-w-none dark:prose-invert">
           <ReactMarkdown
             components={{

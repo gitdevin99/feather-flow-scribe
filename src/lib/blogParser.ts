@@ -3,6 +3,16 @@
 export interface BlogStructure {
   title: string;
   sections: BlogSection[];
+  metadata?: {
+    slug?: string;
+    excerpt?: string;
+    tags?: string[];
+    authors?: string[];
+    publishDate?: string;
+    featured?: boolean;
+    metaDescription?: string;
+    metaTitle?: string;
+  };
 }
 
 export interface BlogSection {
@@ -14,12 +24,16 @@ export interface BlogSection {
 /**
  * Detects the structure of a blog from markdown text
  */
-export function detectStructure(markdownContent: string): BlogStructure {
+export function detectStructure(markdownContent: string, metadata?: any): BlogStructure {
   const lines = markdownContent.split('\n');
   let structure: BlogStructure = {
     title: '',
     sections: []
   };
+
+  if (metadata) {
+    structure.metadata = metadata;
+  }
 
   let currentSection: BlogSection | null = null;
   let listItems: string[] = [];
@@ -31,6 +45,11 @@ export function detectStructure(markdownContent: string): BlogStructure {
       structure.title = lines[i].substring(2).trim();
       break;
     }
+  }
+
+  // If no title found in the content and we have metadata, use that
+  if (!structure.title && metadata && metadata.title) {
+    structure.title = metadata.title;
   }
 
   // Process the rest of the content
@@ -138,6 +157,51 @@ export function convertToNotionFormat(structure: BlogStructure): string {
     notionContent += `# ${structure.title}\n\n`;
   }
   
+  // Add Feather template metadata as a YAML frontmatter
+  if (structure.metadata) {
+    notionContent += '---\n';
+    
+    if (structure.metadata.slug) {
+      notionContent += `slug: ${structure.metadata.slug}\n`;
+    }
+    
+    if (structure.metadata.excerpt) {
+      notionContent += `excerpt: ${structure.metadata.excerpt}\n`;
+    }
+    
+    if (structure.metadata.publishDate) {
+      notionContent += `publish_date: ${structure.metadata.publishDate}\n`;
+    }
+    
+    if (structure.metadata.featured !== undefined) {
+      notionContent += `featured: ${structure.metadata.featured}\n`;
+    }
+    
+    if (structure.metadata.tags && structure.metadata.tags.length > 0) {
+      notionContent += 'tags:\n';
+      structure.metadata.tags.forEach(tag => {
+        notionContent += `  - ${tag}\n`;
+      });
+    }
+    
+    if (structure.metadata.authors && structure.metadata.authors.length > 0) {
+      notionContent += 'authors:\n';
+      structure.metadata.authors.forEach(author => {
+        notionContent += `  - ${author}\n`;
+      });
+    }
+    
+    if (structure.metadata.metaDescription) {
+      notionContent += `meta_description: ${structure.metadata.metaDescription}\n`;
+    }
+    
+    if (structure.metadata.metaTitle) {
+      notionContent += `meta_title: ${structure.metadata.metaTitle || structure.title}\n`;
+    }
+    
+    notionContent += '---\n\n';
+  }
+  
   // Process each section
   for (const section of structure.sections) {
     switch (section.type) {
@@ -174,6 +238,33 @@ export function convertToNotionFormat(structure: BlogStructure): string {
   }
   
   return notionContent;
+}
+
+/**
+ * Generate a JSON representation for Feather's Notion database
+ */
+export function generateFeatherNotionJSON(structure: BlogStructure): any {
+  const metadata = structure.metadata || {};
+  
+  return {
+    Content: {
+      Name: structure.title || "Untitled Blog Post",
+      Slug: metadata.slug || "",
+      "Ready to Publish": true,
+      "Publish Date": metadata.publishDate || new Date().toISOString().split('T')[0],
+      Featured: metadata.featured || false,
+      Tags: metadata.tags || [],
+      Authors: metadata.authors || [],
+      Excerpt: metadata.excerpt || "",
+      "Extra Info": "",
+      "Do not index": false,
+      "Hide CTA": false,
+      "Hide in Main Feed": false,
+      "Meta Description": metadata.metaDescription || "",
+      "Meta Title": metadata.metaTitle || structure.title || "",
+      "Hide Cover": false
+    }
+  };
 }
 
 // Helper function to enhance Notion formatting with Feather blog template specifics

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,8 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Copy, Download, Loader2 } from "lucide-react";
 import BlogPreview from "./BlogPreview";
-import { detectStructure, convertToNotionFormat } from "@/lib/blogParser";
-import { FirecrawlService } from "@/lib/FirecrawlService";
+import { detectStructure, convertToNotionFormat, generateFeatherNotionJSON } from "@/lib/blogParser";
+import { FirecrawlService, BlogMetadata } from "@/lib/FirecrawlService";
 
 const BlogConverter = () => {
   const [blogUrl, setBlogUrl] = useState("");
@@ -16,6 +17,7 @@ const BlogConverter = () => {
   const [convertedContent, setConvertedContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("url");
+  const [metadata, setMetadata] = useState<BlogMetadata | undefined>(undefined);
 
   const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,11 +38,12 @@ const BlogConverter = () => {
       
       const content = response.content || "";
       
-      // Process the extracted content
-      const structure = detectStructure(content);
+      // Process the extracted content with metadata
+      const structure = detectStructure(content, response.metadata);
       const formatted = convertToNotionFormat(structure);
       
       setConvertedContent(formatted);
+      setMetadata(response.metadata);
       toast.success("Blog successfully converted!");
     } catch (error) {
       console.error(error);
@@ -64,6 +67,7 @@ const BlogConverter = () => {
       const formatted = convertToNotionFormat(structure);
       
       setConvertedContent(formatted);
+      setMetadata(undefined); // Reset metadata since we don't have any for pasted content
       toast.success("Blog successfully converted!");
     } catch (error) {
       console.error(error);
@@ -89,6 +93,25 @@ const BlogConverter = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast.success("Downloaded as Markdown!");
+  };
+
+  const downloadAsJSON = () => {
+    if (!convertedContent) return;
+    
+    // Create structure to generate JSON
+    const structure = detectStructure(convertedContent, metadata);
+    const jsonData = generateFeatherNotionJSON(structure);
+    
+    const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'notion-feather-blog.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Downloaded as JSON!");
   };
 
   return (
@@ -181,12 +204,21 @@ const BlogConverter = () => {
                 className="flex items-center"
               >
                 <Download className="mr-1 h-4 w-4" />
-                Download
+                Download MD
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={downloadAsJSON}
+                className="flex items-center"
+              >
+                <Download className="mr-1 h-4 w-4" />
+                Download JSON
               </Button>
             </div>
           </div>
           
-          <BlogPreview content={convertedContent} />
+          <BlogPreview content={convertedContent} metadata={metadata} />
         </div>
       )}
     </div>
