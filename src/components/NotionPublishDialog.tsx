@@ -58,7 +58,15 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
 
       if (result.success) {
         toast.success(result.message);
-        setNotionPageUrl(result.notionPageUrl);
+        // Format the Notion URL properly with correct page ID
+        if (result.notionPageUrl) {
+          // Ensure URL has proper format with UUID if needed
+          const formattedUrl = result.notionPageUrl.includes('https://') 
+            ? result.notionPageUrl
+            : `https://www.notion.so/${result.notionPageUrl.replace(/^page_/, '')}`;
+            
+          setNotionPageUrl(formattedUrl);
+        }
       } else {
         toast.error(result.message);
       }
@@ -102,6 +110,14 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
               onChange={(e) => setApiKey(e.target.value)}
             />
           </div>
+          
+          <div className="grid grid-cols-1 gap-2 mb-2">
+            <p className="text-xs text-gray-500">
+              Make sure you've shared your Notion Content database with your integration.
+              The app will automatically search for a database named "Content".
+            </p>
+          </div>
+          
           {notionPageUrl && (
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="notion-page-url" className="col-span-4">
