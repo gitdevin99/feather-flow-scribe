@@ -16,6 +16,7 @@ interface BlogPreviewProps {
     featured?: boolean;
     metaDescription?: string;
     metaTitle?: string;
+    relatedPosts?: string[];
   };
 }
 
@@ -86,6 +87,12 @@ const BlogPreview = ({ content, metadata }: BlogPreviewProps) => {
                   <TableRow>
                     <TableCell className="font-medium">Authors</TableCell>
                     <TableCell>{metadata.authors.join(", ")}</TableCell>
+                  </TableRow>
+                )}
+                {metadata.relatedPosts && metadata.relatedPosts.length > 0 && (
+                  <TableRow>
+                    <TableCell className="font-medium">Related Posts</TableCell>
+                    <TableCell>{metadata.relatedPosts.join(", ")}</TableCell>
                   </TableRow>
                 )}
                 <TableRow>

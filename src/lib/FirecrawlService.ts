@@ -8,6 +8,12 @@ interface ScrapeResponse {
   html?: string;
   metadata?: any;
   error?: string;
+  data?: {
+    markdown?: string;
+    html?: string;
+    title?: string;
+    metaDescription?: string;
+  };
 }
 
 export interface BlogMetadata {
@@ -20,6 +26,7 @@ export interface BlogMetadata {
   featured?: boolean;
   metaDescription?: string;
   metaTitle?: string;
+  relatedPosts?: string[];
 }
 
 export class FirecrawlService {
@@ -35,7 +42,7 @@ export class FirecrawlService {
     try {
       console.log('Making scrape request to Firecrawl API for URL:', url);
       
-      // Use the scrape endpoint instead of crawl
+      // Use the scrape endpoint
       const response = await fetch(`${this.BASE_URL}/scrape`, {
         method: 'POST',
         headers: {
@@ -44,7 +51,7 @@ export class FirecrawlService {
         },
         body: JSON.stringify({
           url: url,
-          formats: ['markdown']
+          formats: ['markdown', 'html']
         })
       });
       
@@ -68,15 +75,18 @@ export class FirecrawlService {
       }
       
       // Extract content from the response
-      const content = data.markdown || '';
+      const content = (data.data?.markdown || data.markdown || '');
       
       // Create metadata object from page title and other info
       const metadata: BlogMetadata = {};
       
-      // Try to extract a title from the content
-      const titleMatch = content.match(/^#\s+(.+)$/m);
+      // Try to extract a title from the content first
+      let titleMatch = content.match(/^#\s+(.+)$/m);
       if (titleMatch && titleMatch[1]) {
         metadata.title = titleMatch[1].trim();
+      } else if (data.data?.title) {
+        // Use the title from the data object if available
+        metadata.title = data.data.title;
       }
       
       // Generate a slug from the title or URL
@@ -105,27 +115,64 @@ export class FirecrawlService {
         }
       }
       
+      // Set meta description from the data if available
+      if (data.data?.metaDescription) {
+        metadata.metaDescription = data.data.metaDescription;
+      }
+      
       // Default values
       metadata.publishDate = new Date().toISOString().split('T')[0];
       metadata.featured = false;
       
+      // Extract related posts from content
+      const relatedPostsSection = content.match(/## Related Reading\n\n([\s\S]*?)(?=\n\n##|$)/);
+      if (relatedPostsSection && relatedPostsSection[1]) {
+        // Extract links from related posts section
+        const relatedPostLinks = relatedPostsSection[1].match(/\[([^\]]+)\]\(([^)]+)\)/g);
+        if (relatedPostLinks) {
+          metadata.relatedPosts = relatedPostLinks.map(link => {
+            const titleMatch = link.match(/\[([^\]]+)\]/);
+            return titleMatch ? titleMatch[1] : link;
+          });
+        }
+      }
+      
       // Attempt to extract potential tags from content
       const potentialTags = new Set<string>();
-      const keywords = ['email', 'design', 'responsive', 'marketing', 'template', 'html', 'css', 'mobile'];
       
-      // Check for keywords in the content
-      keywords.forEach(keyword => {
-        if (content.toLowerCase().includes(keyword.toLowerCase())) {
-          potentialTags.add(keyword);
-        }
-      });
+      // Look for an explicit Tags or Categories section
+      const tagsSection = content.match(/(?:Tags|Categories):\s*([\s\S]*?)(?=\n\n|$)/);
+      if (tagsSection && tagsSection[1]) {
+        const tagsList = tagsSection[1].split(',').map(tag => tag.trim());
+        tagsList.forEach(tag => {
+          if (tag) potentialTags.add(tag);
+        });
+      }
+      
+      // Check for keywords in the content if we don't have tags yet
+      if (potentialTags.size === 0) {
+        const keywords = ['email', 'design', 'responsive', 'marketing', 'template', 'html', 'css', 
+                          'mobile', 'analytics', 'automation', 'newsletter', 'campaign'];
+        
+        keywords.forEach(keyword => {
+          if (content.toLowerCase().includes(keyword.toLowerCase())) {
+            potentialTags.add(keyword);
+          }
+        });
+      }
       
       if (potentialTags.size > 0) {
         metadata.tags = Array.from(potentialTags).slice(0, 5); // Limit to 5 tags
       }
       
-      // Add a default author
-      metadata.authors = ['Content Team'];
+      // Extract author information
+      const authorMatch = content.match(/(?:Author|By):\s*([^\n]+)/i);
+      if (authorMatch && authorMatch[1]) {
+        metadata.authors = [authorMatch[1].trim()];
+      } else {
+        // Default author
+        metadata.authors = ['Content Team'];
+      }
       
       return {
         success: true,
