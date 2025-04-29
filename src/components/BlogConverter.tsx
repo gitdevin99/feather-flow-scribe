@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,8 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Copy, Download, Loader2 } from "lucide-react";
+import { Copy, Download, Loader2, Send } from "lucide-react";
 import BlogPreview from "./BlogPreview";
+import NotionPublishDialog from "./NotionPublishDialog";
 import { detectStructure, convertToNotionFormat, generateFeatherNotionJSON } from "@/lib/blogParser";
 import { FirecrawlService, BlogMetadata } from "@/lib/FirecrawlService";
 
@@ -215,6 +215,20 @@ const BlogConverter = () => {
                 <Download className="mr-1 h-4 w-4" />
                 Download JSON
               </Button>
+              <NotionPublishDialog
+                content={convertedContent}
+                metadata={metadata}
+                trigger={
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="flex items-center"
+                  >
+                    <Send className="mr-1 h-4 w-4" />
+                    Publish to Notion
+                  </Button>
+                }
+              />
             </div>
           </div>
           

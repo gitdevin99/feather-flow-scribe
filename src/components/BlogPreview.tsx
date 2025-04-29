@@ -3,6 +3,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import ReactMarkdown from "react-markdown";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 interface BlogPreviewProps {
   content: string;
@@ -80,7 +81,15 @@ const BlogPreview = ({ content, metadata }: BlogPreviewProps) => {
                 {metadata.tags && metadata.tags.length > 0 && (
                   <TableRow>
                     <TableCell className="font-medium">Tags</TableCell>
-                    <TableCell>{metadata.tags.join(", ")}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {metadata.tags.map((tag, index) => (
+                          <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 )}
                 {metadata.authors && metadata.authors.length > 0 && (
@@ -92,7 +101,13 @@ const BlogPreview = ({ content, metadata }: BlogPreviewProps) => {
                 {metadata.relatedPosts && metadata.relatedPosts.length > 0 && (
                   <TableRow>
                     <TableCell className="font-medium">Related Posts</TableCell>
-                    <TableCell>{metadata.relatedPosts.join(", ")}</TableCell>
+                    <TableCell>
+                      <ul className="list-disc pl-5">
+                        {metadata.relatedPosts.map((post, index) => (
+                          <li key={index}>{post}</li>
+                        ))}
+                      </ul>
+                    </TableCell>
                   </TableRow>
                 )}
                 <TableRow>

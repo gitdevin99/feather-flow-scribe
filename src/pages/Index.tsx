@@ -3,6 +3,7 @@ import React from "react";
 import { Toaster } from "sonner";
 import BlogConverter from "@/components/BlogConverter";
 import Footer from "@/components/Footer";
+import FeatherTemplateHelp from "@/components/FeatherTemplateHelp";
 
 const Index = () => {
   return (
@@ -19,6 +20,8 @@ const Index = () => {
         </div>
         
         <BlogConverter />
+        
+        <FeatherTemplateHelp />
       </main>
       
       <Footer />
