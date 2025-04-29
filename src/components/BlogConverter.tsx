@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +8,7 @@ import { toast } from "sonner";
 import { Copy, Download, Loader2 } from "lucide-react";
 import BlogPreview from "./BlogPreview";
 import { detectStructure, convertToNotionFormat } from "@/lib/blogParser";
+import { FirecrawlService } from "@/lib/FirecrawlService";
 
 const BlogConverter = () => {
   const [blogUrl, setBlogUrl] = useState("");
@@ -26,14 +26,18 @@ const BlogConverter = () => {
 
     setIsLoading(true);
     try {
-      // In a real implementation, this would fetch the content from the URL
-      // Here we're simulating that with a timeout
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Fetch the blog content using FirecrawlService
+      const response = await FirecrawlService.crawlWebsite(blogUrl);
       
-      // This is a simulated blog fetch - in real implementation, you'd fetch the content
-      const sampleBlogContent = `# How to Use Feather with Notion\n\nFeather.so is a powerful tool that integrates with Notion. Here's how to use it effectively.\n\n## Getting Started\n\nFirst, you'll need to set up your Notion account and connect it to Feather.\n\n### Prerequisites\n* A Notion account\n* A Feather.so subscription\n\n## Key Features\n\n1. Simple integration\n2. Powerful formatting\n3. Export options`;
+      if (!response.success) {
+        toast.error(response.error || "Failed to fetch blog content");
+        return;
+      }
       
-      const structure = detectStructure(sampleBlogContent);
+      const content = response.content || "";
+      
+      // Process the extracted content
+      const structure = detectStructure(content);
       const formatted = convertToNotionFormat(structure);
       
       setConvertedContent(formatted);
@@ -101,7 +105,7 @@ const BlogConverter = () => {
               <form onSubmit={handleUrlSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Input
-                    placeholder="Enter blog URL"
+                    placeholder="Enter blog URL (e.g., https://blog.example.com/post)"
                     value={blogUrl}
                     onChange={(e) => setBlogUrl(e.target.value)}
                     className="w-full"
@@ -115,7 +119,7 @@ const BlogConverter = () => {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Converting...
+                      Fetching and Converting...
                     </>
                   ) : (
                     "Convert to Notion Format"
