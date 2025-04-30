@@ -55,7 +55,7 @@ const ZapierIntegration = () => {
 
       if (result.success) {
         toast.success(result.message);
-        toast.info("Please check your Zapier task history to verify the webhook was received");
+        toast.info("Note: Even with a success message, you should verify the webhook was received in your Zapier account");
       } else {
         toast.error(result.message);
       }
@@ -102,6 +102,13 @@ const ZapierIntegration = () => {
                   placeholder="https://hooks.zapier.com/hooks/catch/..."
                 />
               </div>
+
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertDescription>
+                  <p className="font-medium">Important:</p>
+                  <p className="text-sm mt-1">After testing, check your Zapier task history to confirm the webhook was received, even if you see a success message here.</p>
+                </AlertDescription>
+              </Alert>
             </CardContent>
             <CardFooter className="flex justify-between">
               <Button 
@@ -167,9 +174,10 @@ const ZapierIntegration = () => {
                   <ul className="list-disc pl-5 space-y-2 text-sm">
                     <li>Make sure your Zap is turned "on" in the Zapier dashboard</li>
                     <li>Check that the webhook URL is correctly copied (no extra spaces)</li>
-                    <li>Verify your browser allows cross-origin requests</li>
-                    <li>Try using a different browser if issues persist</li>
-                    <li>In the "Child Key" field during Zap setup, leave it blank to access the entire payload</li>
+                    <li>Verify the webhook test was received in Zapier task history</li>
+                    <li>For the payload format, check the "raw hook" option in Zapier</li>
+                    <li>Make sure your Zapier account has the Notion integration enabled</li>
+                    <li>In Zapier's "Test Trigger" step, click "Test Trigger" to see the webhook data format</li>
                   </ul>
                 </AlertDescription>
               </Alert>

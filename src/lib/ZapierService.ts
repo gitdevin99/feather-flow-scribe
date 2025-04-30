@@ -1,4 +1,3 @@
-
 export interface ZapierWebhookData {
   title: string;
   content: string;
@@ -31,29 +30,22 @@ export class ZapierService {
         return false;
       }
 
-      // Try with a JSONP proxy if direct connection fails
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(webhookUrl)}`;
-      
-      console.log("Using proxy URL:", proxyUrl);
-      
-      const response = await fetch(proxyUrl, {
+      // Use no-cors mode to bypass CORS restrictions
+      const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        mode: "no-cors", // This prevents CORS errors but means we can't read the response
         body: JSON.stringify(data),
       });
       
-      console.log("Zapier webhook response:", response);
+      console.log("Zapier webhook request sent");
       
-      // Check if the response is ok (status code 200-299)
-      if (response.ok) {
-        console.log("Zapier webhook triggered successfully");
-        return true;
-      } else {
-        console.error("Zapier webhook error response:", response.status, response.statusText);
-        return false;
-      }
+      // Since we're using no-cors mode, we can't actually check the response status
+      // We'll assume it worked if no error was thrown
+      return true;
+      
     } catch (error) {
       console.error("Error triggering Zapier webhook:", error);
       return false;
@@ -77,7 +69,7 @@ export class ZapierService {
       if (success) {
         return {
           success: true,
-          message: "Successfully sent to Zapier for processing!"
+          message: "Successfully sent to Zapier for processing! Check your Zapier task history."
         };
       } else {
         return {
