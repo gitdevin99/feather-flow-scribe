@@ -4,6 +4,9 @@ import { Toaster } from "sonner";
 import BlogConverter from "@/components/BlogConverter";
 import Footer from "@/components/Footer";
 import FeatherTemplateHelp from "@/components/FeatherTemplateHelp";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Link as LinkIcon } from "lucide-react";
 
 const Index = () => {
   return (
@@ -17,6 +20,14 @@ const Index = () => {
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Automatically convert blog articles into Notion pages that match the Feather blog template structure
           </p>
+          <div className="mt-4">
+            <Button variant="outline" asChild className="gap-2">
+              <Link to="/zapier-integration">
+                <LinkIcon className="h-4 w-4" />
+                Configure Zapier Integration
+              </Link>
+            </Button>
+          </div>
         </div>
         
         <BlogConverter />

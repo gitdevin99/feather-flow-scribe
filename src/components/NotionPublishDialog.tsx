@@ -12,11 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertTriangle, LogIn, Database, User } from "lucide-react";
+import { Loader2, AlertTriangle, LogIn, Database, User, Link } from "lucide-react";
 import { NotionService } from "@/lib/NotionService";
+import { ZapierService } from "@/lib/ZapierService";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useLocation } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface NotionPublishDialogProps {
   content: string;
@@ -43,6 +45,8 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [notionUserId, setNotionUserId] = useState<string | null>(null);
   const [databaseId, setDatabaseId] = useState<string | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [activeTab, setActiveTab] = useState<"direct" | "zapier">("direct");
   const location = useLocation();
 
   // Check authentication status when dialog opens
@@ -60,6 +64,9 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
       setIsAuthenticated(NotionService.isAuthenticated());
       setNotionUserId(NotionService.getUserId());
       setDatabaseId(NotionService.getDatabaseId());
+      
+      // Load Zapier webhook URL
+      setWebhookUrl(ZapierService.getStoredWebhookUrl());
     }
   }, [open]);
 
@@ -85,7 +92,7 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
     }
   };
 
-  const handlePublish = async () => {
+  const handlePublishDirect = async () => {
     if (!isAuthenticated && !apiKey) {
       toast.error("Please authenticate with Notion or enter your API key");
       return;
@@ -119,6 +126,41 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
       setIsPublishing(false);
     }
   };
+  
+  const handleWebhookUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value;
+    setWebhookUrl(url);
+    ZapierService.setWebhookUrl(url);
+  };
+
+  const handlePublishViaZapier = async () => {
+    if (!webhookUrl) {
+      toast.error("Please enter your Zapier webhook URL");
+      return;
+    }
+
+    setIsPublishing(true);
+
+    try {
+      const result = await ZapierService.publishViaZapier(webhookUrl, {
+        title: metadata?.title || "Untitled Blog Post",
+        content,
+        notionApiKey: apiKey,
+        metadata,
+      });
+
+      if (result.success) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error("Error publishing via Zapier:", error);
+      toast.error("Failed to publish via Zapier. Please try again.");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -131,139 +173,205 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
           </DialogDescription>
         </DialogHeader>
         
-        <Alert variant="warning" className="mt-2 bg-amber-50">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            This is a demo implementation. In a production environment, a backend service would handle the authentication and API calls to Notion.
-          </AlertDescription>
-        </Alert>
-        
-        <div className="grid gap-4 py-4">
-          {isAuthenticated ? (
-            <div className="bg-green-50 p-3 rounded-md border border-green-200 space-y-2">
-              <p className="text-sm text-green-800 flex items-center gap-2">
-                <span className="bg-green-100 p-1 rounded-full">✓</span>
-                Authorized with Notion
-              </p>
-              
-              {notionUserId && (
-                <div className="flex items-center gap-2 text-xs text-gray-600 bg-white p-1.5 rounded border border-gray-100">
-                  <User className="h-3.5 w-3.5" />
-                  <span>User ID: {notionUserId}</span>
-                </div>
-              )}
-              
-              {databaseId && (
-                <div className="flex items-center gap-2 text-xs text-gray-600 bg-white p-1.5 rounded border border-gray-100">
-                  <Database className="h-3.5 w-3.5" />
-                  <span>Database ID: {databaseId}</span>
-                </div>
-              )}
-              
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 w-full"
-                onClick={handleLogout}
-              >
-                Logout from Notion
-              </Button>
-            </div>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                className="flex items-center justify-center gap-2"
-                onClick={handleStartOAuth}
-              >
-                <LogIn className="h-4 w-4" />
-                Authorize with Notion
-              </Button>
-              
-              <div className="relative my-2">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-gray-300" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-muted-foreground">Or use API Key</span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="notion-api-key">
-                  Notion API Key (Integration Token)
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="notion-api-key"
-                    type="password"
-                    placeholder="Enter your Notion integration token"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button 
-                    variant="secondary" 
-                    onClick={handleApiKeySubmit}
-                    disabled={!apiKey.trim()}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "direct" | "zapier")} className="mt-2">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="direct">Direct Publish</TabsTrigger>
+            <TabsTrigger value="zapier">Via Zapier</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="direct">
+            <Alert variant="warning" className="mt-2 bg-amber-50">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                This is a demo implementation. In a production environment, a backend service would handle the authentication and API calls to Notion.
+              </AlertDescription>
+            </Alert>
+            
+            <div className="grid gap-4 py-4">
+              {isAuthenticated ? (
+                <div className="bg-green-50 p-3 rounded-md border border-green-200 space-y-2">
+                  <p className="text-sm text-green-800 flex items-center gap-2">
+                    <span className="bg-green-100 p-1 rounded-full">✓</span>
+                    Authorized with Notion
+                  </p>
+                  
+                  {notionUserId && (
+                    <div className="flex items-center gap-2 text-xs text-gray-600 bg-white p-1.5 rounded border border-gray-100">
+                      <User className="h-3.5 w-3.5" />
+                      <span>User ID: {notionUserId}</span>
+                    </div>
+                  )}
+                  
+                  {databaseId && (
+                    <div className="flex items-center gap-2 text-xs text-gray-600 bg-white p-1.5 rounded border border-gray-100">
+                      <Database className="h-3.5 w-3.5" />
+                      <span>Database ID: {databaseId}</span>
+                    </div>
+                  )}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={handleLogout}
                   >
-                    Save
+                    Logout from Notion
                   </Button>
                 </div>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    className="flex items-center justify-center gap-2"
+                    onClick={handleStartOAuth}
+                  >
+                    <LogIn className="h-4 w-4" />
+                    Authorize with Notion
+                  </Button>
+                  
+                  <div className="relative my-2">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-gray-300" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-muted-foreground">Or use API Key</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="notion-api-key">
+                      Notion API Key (Integration Token)
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="notion-api-key"
+                        type="password"
+                        placeholder="Enter your Notion integration token"
+                        value={apiKey}
+                        onChange={(e) => setApiKey(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button 
+                        variant="secondary" 
+                        onClick={handleApiKeySubmit}
+                        disabled={!apiKey.trim()}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              <div className="grid grid-cols-1 gap-2 mb-2">
+                <p className="text-xs text-gray-500">
+                  In a production environment, you would need to share your Notion database with your integration.
+                </p>
               </div>
-            </>
-          )}
+              
+              {notionPageUrl && (
+                <div className="grid gap-2">
+                  <Label htmlFor="notion-page-url">
+                    Published Page URL:
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="notion-page-url"
+                      type="text"
+                      readOnly
+                      value={notionPageUrl}
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => window.open(notionPageUrl, "_blank")}
+                    >
+                      Open
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                type="button"
+                variant="default"
+                onClick={handlePublishDirect}
+                disabled={isPublishing || (!isAuthenticated && !apiKey)}
+                className="w-full"
+              >
+                {isPublishing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  "Publish to Notion"
+                )}
+              </Button>
+            </div>
+          </TabsContent>
           
-          <div className="grid grid-cols-1 gap-2 mb-2">
-            <p className="text-xs text-gray-500">
-              In a production environment, you would need to share your Notion database with your integration.
-            </p>
-          </div>
-          
-          {notionPageUrl && (
-            <div className="grid gap-2">
-              <Label htmlFor="notion-page-url">
-                Published Page URL:
-              </Label>
-              <div className="flex gap-2">
+          <TabsContent value="zapier">
+            <div className="grid gap-4 py-4">
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertDescription>
+                  Connect with Zapier to automate publishing your blog content to Notion. This requires a Zapier account with a webhook trigger.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-2">
+                <Label htmlFor="zapier-webhook-url">
+                  Zapier Webhook URL
+                </Label>
                 <Input
-                  id="notion-page-url"
+                  id="zapier-webhook-url"
                   type="text"
-                  readOnly
-                  value={notionPageUrl}
+                  placeholder="https://hooks.zapier.com/hooks/catch/..."
+                  value={webhookUrl}
+                  onChange={handleWebhookUrlChange}
                   className="flex-1"
                 />
-                <Button
-                  variant="outline"
-                  onClick={() => window.open(notionPageUrl, "_blank")}
-                >
-                  Open
-                </Button>
+                <p className="text-xs text-gray-500">
+                  Create a Zap with a Webhook trigger and paste the webhook URL here. Your Zap should use Notion as the action app.
+                </p>
+              </div>
+              
+              <Button
+                type="button"
+                variant="default"
+                onClick={handlePublishViaZapier}
+                disabled={isPublishing || !webhookUrl}
+                className="w-full"
+              >
+                {isPublishing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending to Zapier...
+                  </>
+                ) : (
+                  "Publish via Zapier"
+                )}
+              </Button>
+              
+              <div className="mt-2 text-xs text-gray-500">
+                <p className="font-semibold mb-1">How to set up your Zap:</p>
+                <ol className="list-decimal pl-5 space-y-1">
+                  <li>Create a new Zap in Zapier</li>
+                  <li>Choose "Webhooks by Zapier" as your trigger</li>
+                  <li>Select "Catch Hook" as the trigger event</li>
+                  <li>Copy the webhook URL and paste it above</li>
+                  <li>Add Notion as your action app</li>
+                  <li>Configure Notion to create a new page in your database</li>
+                </ol>
               </div>
             </div>
-          )}
-        </div>
-        <DialogFooter className="sm:justify-start">
-          <Button
-            type="button"
-            variant="default"
-            onClick={handlePublish}
-            disabled={isPublishing || (!isAuthenticated && !apiKey)}
-            className="w-full"
-          >
-            {isPublishing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Publishing...
-              </>
-            ) : (
-              "Publish to Notion"
-            )}
-          </Button>
-        </DialogFooter>
+          </TabsContent>
+        </Tabs>
+        
       </DialogContent>
     </Dialog>
   );
 };
 
 export default NotionPublishDialog;
+
