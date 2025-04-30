@@ -25,19 +25,25 @@ export class ZapierService {
     try {
       console.log("Triggering Zapier webhook with data:", data);
       
+      // Use standard fetch with proper CORS handling
       const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        mode: "no-cors", // Handle CORS issues
         body: JSON.stringify(data),
       });
       
-      // Since we're using no-cors, we won't get a proper response status
-      // We'll assume it worked if no error was thrown
-      console.log("Zapier webhook triggered");
-      return true;
+      console.log("Zapier webhook response:", response);
+      
+      // Check if the response is ok (status code 200-299)
+      if (response.ok) {
+        console.log("Zapier webhook triggered successfully");
+        return true;
+      } else {
+        console.error("Zapier webhook error response:", response.status, response.statusText);
+        return false;
+      }
     } catch (error) {
       console.error("Error triggering Zapier webhook:", error);
       return false;
@@ -66,7 +72,7 @@ export class ZapierService {
       } else {
         return {
           success: false,
-          message: "Failed to trigger Zapier webhook"
+          message: "Failed to trigger Zapier webhook. Please check your webhook URL and Zapier settings."
         };
       }
     } catch (error) {

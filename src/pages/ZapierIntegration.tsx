@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ZapierService } from "@/lib/ZapierService";
-import { AlertTriangle, Link as LinkIcon } from "lucide-react";
+import { AlertTriangle, Link as LinkIcon, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 const ZapierIntegration = () => {
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
     // Load saved webhook URL
@@ -30,6 +31,9 @@ const ZapierIntegration = () => {
       return;
     }
 
+    setIsTesting(true);
+    toast.info("Sending test data to Zapier...");
+
     try {
       const result = await ZapierService.publishViaZapier(webhookUrl, {
         title: "Test Blog Post",
@@ -37,17 +41,23 @@ const ZapierIntegration = () => {
         metadata: {
           title: "Test Blog Post",
           slug: "test-blog-post",
-          excerpt: "Test excerpt"
+          excerpt: "Test excerpt",
+          tags: ["test", "zapier"],
+          authors: ["Test User"]
         }
       });
 
       if (result.success) {
         toast.success(result.message);
+        toast.info("Please check your Zapier task history to verify the webhook was received");
       } else {
         toast.error(result.message);
       }
     } catch (error) {
       toast.error("Failed to test Zapier webhook");
+      console.error("Test webhook error:", error);
+    } finally {
+      setIsTesting(false);
     }
   };
 
@@ -88,8 +98,19 @@ const ZapierIntegration = () => {
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={handleTestWebhook}>
-                Test Connection
+              <Button 
+                variant="outline" 
+                onClick={handleTestWebhook}
+                disabled={isTesting || !webhookUrl.trim()}
+              >
+                {isTesting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Testing...
+                  </>
+                ) : (
+                  "Test Connection"
+                )}
               </Button>
               <Button onClick={handleSaveWebhook}>Save Webhook URL</Button>
             </CardFooter>
@@ -126,7 +147,11 @@ const ZapierIntegration = () => {
                 </li>
                 <li>
                   <strong>Map the data fields</strong>
-                  <p className="text-gray-600">Map the incoming data fields to your Notion database properties: title, content, tags, etc.</p>
+                  <p className="text-gray-600">For the title field, select "title" from the webhook data. For content, use "content". For other properties, use the corresponding fields from the "metadata" object.</p>
+                </li>
+                <li>
+                  <strong>Test and publish your Zap</strong>
+                  <p className="text-gray-600">Use the "Test Connection" button to send test data, then check if it appears in your Zapier task history.</p>
                 </li>
               </ol>
             </CardContent>
