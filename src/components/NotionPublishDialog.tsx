@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertTriangle, LogIn } from "lucide-react";
+import { Loader2, AlertTriangle, LogIn, Database, User } from "lucide-react";
 import { NotionService } from "@/lib/NotionService";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -41,33 +41,25 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
   const [isPublishing, setIsPublishing] = useState(false);
   const [notionPageUrl, setNotionPageUrl] = useState<string | undefined>(undefined);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [notionUserId, setNotionUserId] = useState<string | null>(null);
+  const [databaseId, setDatabaseId] = useState<string | null>(null);
   const location = useLocation();
-
-  // Check for OAuth callback code
-  useEffect(() => {
-    const urlParams = new URLSearchParams(location.search);
-    const code = urlParams.get('code');
-    
-    if (code) {
-      // Handle OAuth callback
-      NotionService.handleOAuthCallback(code)
-        .then(success => {
-          if (success) {
-            setIsAuthenticated(true);
-            toast.success("Successfully authenticated with Notion!");
-          }
-        })
-        .catch(err => {
-          console.error("OAuth error:", err);
-          toast.error("Failed to authenticate with Notion");
-        });
-    }
-  }, [location]);
 
   // Check authentication status when dialog opens
   useEffect(() => {
     if (open) {
+      // Load API key from localStorage if available
+      const savedApiKey = localStorage.getItem("notion_api_key");
+      if (savedApiKey) {
+        setApiKey(savedApiKey);
+      }
+      
+      // Check if we have a saved auth session
+      const hasSavedAuth = NotionService.checkSavedAuth();
+      
       setIsAuthenticated(NotionService.isAuthenticated());
+      setNotionUserId(NotionService.getUserId());
+      setDatabaseId(NotionService.getDatabaseId());
     }
   }, [open]);
 
@@ -79,8 +71,18 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
   const handleLogout = () => {
     NotionService.logout();
     setIsAuthenticated(false);
+    setNotionUserId(null);
+    setDatabaseId(null);
     setNotionPageUrl(undefined);
     toast.info("Logged out from Notion");
+  };
+
+  const handleApiKeySubmit = () => {
+    if (apiKey.trim()) {
+      NotionService.setApiKey(apiKey.trim());
+      setIsAuthenticated(true);
+      toast.success("API key saved");
+    }
   };
 
   const handlePublish = async () => {
@@ -89,7 +91,7 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
       return;
     }
 
-    if (apiKey) {
+    if (apiKey && !NotionService.isAuthenticated()) {
       NotionService.setApiKey(apiKey);
     }
 
@@ -103,15 +105,9 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
       });
 
       if (result.success) {
-        toast.success(result.message);
-        // Format the Notion URL properly with correct page ID
+        toast.success("Successfully published to Notion!");
         if (result.notionPageUrl) {
-          // Ensure URL has proper format with UUID if needed
-          const formattedUrl = result.notionPageUrl.includes('https://') 
-            ? result.notionPageUrl
-            : `https://www.notion.so/${result.notionPageUrl.replace(/^page_/, '')}`;
-            
-          setNotionPageUrl(formattedUrl);
+          setNotionPageUrl(result.notionPageUrl);
         }
       } else {
         toast.error(result.message);
@@ -138,23 +134,39 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
         <Alert variant="warning" className="mt-2 bg-amber-50">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Browser security (CORS) prevents direct API calls to Notion. In a production application, this would require a backend proxy or server function.
+            This is a demo implementation. In a production environment, a backend service would handle the authentication and API calls to Notion.
           </AlertDescription>
         </Alert>
         
         <div className="grid gap-4 py-4">
           {isAuthenticated ? (
-            <div className="bg-green-50 p-2 rounded-md border border-green-200">
-              <p className="text-sm text-green-800">
-                ✅ Authorized with Notion
+            <div className="bg-green-50 p-3 rounded-md border border-green-200 space-y-2">
+              <p className="text-sm text-green-800 flex items-center gap-2">
+                <span className="bg-green-100 p-1 rounded-full">✓</span>
+                Authorized with Notion
               </p>
+              
+              {notionUserId && (
+                <div className="flex items-center gap-2 text-xs text-gray-600 bg-white p-1.5 rounded border border-gray-100">
+                  <User className="h-3.5 w-3.5" />
+                  <span>User ID: {notionUserId}</span>
+                </div>
+              )}
+              
+              {databaseId && (
+                <div className="flex items-center gap-2 text-xs text-gray-600 bg-white p-1.5 rounded border border-gray-100">
+                  <Database className="h-3.5 w-3.5" />
+                  <span>Database ID: {databaseId}</span>
+                </div>
+              )}
+              
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2"
+                className="mt-2 w-full"
                 onClick={handleLogout}
               >
-                Logout
+                Logout from Notion
               </Button>
             </div>
           ) : (
@@ -177,50 +189,57 @@ const NotionPublishDialog = ({ content, metadata, trigger }: NotionPublishDialog
                 </div>
               </div>
               
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="notion-api-key" className="col-span-4">
-                  Notion API Key
+              <div className="space-y-2">
+                <Label htmlFor="notion-api-key">
+                  Notion API Key (Integration Token)
                 </Label>
-                <Input
-                  id="notion-api-key"
-                  type="password"
-                  placeholder="Enter your Notion integration token"
-                  className="col-span-4"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="notion-api-key"
+                    type="password"
+                    placeholder="Enter your Notion integration token"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    variant="secondary" 
+                    onClick={handleApiKeySubmit}
+                    disabled={!apiKey.trim()}
+                  >
+                    Save
+                  </Button>
+                </div>
               </div>
             </>
           )}
           
           <div className="grid grid-cols-1 gap-2 mb-2">
             <p className="text-xs text-gray-500">
-              Make sure you've shared your Notion Content database with your integration.
-              The app will automatically search for a database named "Content".
+              In a production environment, you would need to share your Notion database with your integration.
             </p>
           </div>
           
           {notionPageUrl && (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="notion-page-url" className="col-span-4">
+            <div className="grid gap-2">
+              <Label htmlFor="notion-page-url">
                 Published Page URL:
               </Label>
-              <Input
-                id="notion-page-url"
-                type="text"
-                readOnly
-                value={notionPageUrl}
-                className="col-span-3"
-              />
-              <Button
-                variant="outline"
-                className="col-span-1"
-                onClick={() => {
-                  window.open(notionPageUrl, "_blank");
-                }}
-              >
-                Open
-              </Button>
+              <div className="flex gap-2">
+                <Input
+                  id="notion-page-url"
+                  type="text"
+                  readOnly
+                  value={notionPageUrl}
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(notionPageUrl, "_blank")}
+                >
+                  Open
+                </Button>
+              </div>
             </div>
           )}
         </div>

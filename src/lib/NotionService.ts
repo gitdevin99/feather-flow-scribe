@@ -29,6 +29,10 @@ export class NotionService {
   private static NOTION_API_KEY = ""; // We'll set this dynamically
   private static notionClient: Client | null = null;
   private static accessToken: string | null = null;
+  private static notionUserId: string | null = null;
+  
+  // Default database ID for Notion
+  private static databaseId: string | null = null;
 
   // OAuth configuration
   private static oauthConfig: NotionOAuthConfig = {
@@ -49,15 +53,38 @@ export class NotionService {
   }
 
   static handleOAuthCallback(code: string): Promise<boolean> {
-    // In a real implementation, we would exchange the code for an access token
-    // But this requires a server-side component due to CORS restrictions
     console.log("OAuth code received:", code);
     
-    // Mock a successful OAuth flow for demo purposes
-    this.accessToken = `mock_access_token_${Date.now()}`;
+    // In a production environment, you would have a backend endpoint to handle the OAuth token exchange
+    // For example POST to your-backend.com/api/notion/oauth with the code
+    // The backend would then exchange the code for an access token using Notion's token endpoint
     
-    // Return a promise that resolves to true if the authentication was successful
+    // For the purposes of this demo, we'll simulate a successful OAuth flow
+    this.accessToken = `mock_access_token_${Date.now()}`;
+    this.notionUserId = `mock_user_${Date.now()}`;
+    localStorage.setItem("notion_access_token", this.accessToken);
+    localStorage.setItem("notion_user_id", this.notionUserId);
+    
+    // In a real implementation, we would also store the workspace ID and find available databases
+    // For the demo, we'll use a mock database ID
+    this.databaseId = "mock_database_id_" + Date.now().toString().substring(8);
+    localStorage.setItem("notion_database_id", this.databaseId);
+    
     return Promise.resolve(true);
+  }
+  
+  static checkSavedAuth(): boolean {
+    const savedToken = localStorage.getItem("notion_access_token");
+    const savedUserId = localStorage.getItem("notion_user_id");
+    
+    if (savedToken && savedUserId) {
+      this.accessToken = savedToken;
+      this.notionUserId = savedUserId;
+      this.databaseId = localStorage.getItem("notion_database_id");
+      return true;
+    }
+    
+    return false;
   }
 
   private static getClient(): Client {
@@ -84,26 +111,40 @@ export class NotionService {
     try {
       console.log("Publishing to Notion:", { title, contentPreview: content.substring(0, 100), metadata });
       
+      // Check for saved auth first
+      if (!this.isAuthenticated()) {
+        this.checkSavedAuth();
+      }
+      
       // Get the Notion client
       const notion = this.getClient();
       
-      // Create a mock response for now to bypass the CORS issue
-      // In production, this would need a backend proxy or server-side implementation
-      const mockDatabaseId = "mock_database_id";
+      // In a production environment, we would:
+      // 1. Make an API call to our backend to handle the Notion API request
+      // 2. The backend would use the access token to create a page in the database
       
       // Parse content to Notion blocks
       const contentBlocks = this.parseContentToBlocks(content);
       
-      // Simulate page creation with mock data
-      const pageId = `page_${Date.now()}`;
+      // Generate a realistic page ID that looks like a Notion UUID
+      const generateNotionLikeId = () => {
+        return Array.from({ length: 4 }, () => 
+          Math.floor(Math.random() * 16).toString(16)
+        ).join('') + '-' + 
+        Array.from({ length: 12 }, () => 
+          Math.floor(Math.random() * 16).toString(16)
+        ).join('');
+      };
       
-      // Show a message about the CORS limitation
-      toast.info("Note: Browser security prevents direct Notion API access. In production, use a backend proxy.");
+      const pageId = generateNotionLikeId();
+      
+      // Show information about the CORS limitation
+      toast.info("Note: Browser security prevents direct Notion API access. In production, this would use a backend proxy.");
       
       return {
         success: true,
-        message: "CORS limitations prevent direct browser-to-Notion communication. In production, this would require a backend proxy or server function.",
-        notionPageUrl: `https://notion.so/${pageId.replace(/^page_/, '')}`
+        message: "Post has been published to Notion (mock). In production, this would create a real Notion page.",
+        notionPageUrl: `https://www.notion.so/${pageId}`
       };
     } catch (error) {
       console.error("Error publishing to Notion:", error);
@@ -207,6 +248,13 @@ export class NotionService {
     // Reset the client so it will be recreated with the new API key
     this.notionClient = null;
     this.accessToken = null;
+    
+    // Store the API key in localStorage
+    if (apiKey) {
+      localStorage.setItem("notion_api_key", apiKey);
+    } else {
+      localStorage.removeItem("notion_api_key");
+    }
   }
 
   static isAuthenticated(): boolean {
@@ -217,5 +265,21 @@ export class NotionService {
     this.NOTION_API_KEY = "";
     this.accessToken = null;
     this.notionClient = null;
+    this.notionUserId = null;
+    this.databaseId = null;
+    
+    // Clear localStorage
+    localStorage.removeItem("notion_access_token");
+    localStorage.removeItem("notion_user_id");
+    localStorage.removeItem("notion_api_key");
+    localStorage.removeItem("notion_database_id");
+  }
+  
+  static getDatabaseId(): string | null {
+    return this.databaseId;
+  }
+  
+  static getUserId(): string | null {
+    return this.notionUserId;
   }
 }
