@@ -25,8 +25,18 @@ export class ZapierService {
     try {
       console.log("Triggering Zapier webhook with data:", data);
       
-      // Use standard fetch with proper CORS handling
-      const response = await fetch(webhookUrl, {
+      // Check if the webhook URL is valid
+      if (!webhookUrl.startsWith("https://hooks.zapier.com/")) {
+        console.error("Invalid Zapier webhook URL format");
+        return false;
+      }
+
+      // Try with a JSONP proxy if direct connection fails
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(webhookUrl)}`;
+      
+      console.log("Using proxy URL:", proxyUrl);
+      
+      const response = await fetch(proxyUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

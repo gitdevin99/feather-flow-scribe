@@ -31,6 +31,12 @@ const ZapierIntegration = () => {
       return;
     }
 
+    // Validate the webhook URL format
+    if (!webhookUrl.startsWith("https://hooks.zapier.com/")) {
+      toast.error("Invalid Zapier webhook URL format. It should start with 'https://hooks.zapier.com/'");
+      return;
+    }
+
     setIsTesting(true);
     toast.info("Sending test data to Zapier...");
 
@@ -154,6 +160,19 @@ const ZapierIntegration = () => {
                   <p className="text-gray-600">Use the "Test Connection" button to send test data, then check if it appears in your Zapier task history.</p>
                 </li>
               </ol>
+
+              <Alert className="mt-6 bg-blue-50 border-blue-200">
+                <AlertDescription className="space-y-4">
+                  <p className="font-semibold">Troubleshooting Tips:</p>
+                  <ul className="list-disc pl-5 space-y-2 text-sm">
+                    <li>Make sure your Zap is turned "on" in the Zapier dashboard</li>
+                    <li>Check that the webhook URL is correctly copied (no extra spaces)</li>
+                    <li>Verify your browser allows cross-origin requests</li>
+                    <li>Try using a different browser if issues persist</li>
+                    <li>In the "Child Key" field during Zap setup, leave it blank to access the entire payload</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
             </CardContent>
             <CardFooter>
               <Button variant="outline" className="w-full" asChild>
